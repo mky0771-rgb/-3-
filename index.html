@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>일산양일중 위치에너지 실험실</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Noto Sans KR) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .canvas-container {
+            position: relative;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+        }
+        .graph-canvas {
+            background-color: #ffffff;
+            border-radius: 8px;
+        }
+        .btn-option {
+            transition: all 0.2s ease;
+        }
+        .btn-option:hover {
+            transform: translateY(-2px);
+        }
+        .active-object {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+        .active-ref {
+            border-color: #10b981 !important;
+            background-color: #ecfdf5 !important;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 min-h-screen text-slate-800 flex flex-col items-center">
+
+    <!-- Header Section -->
+    <header class="w-full max-w-7xl text-center mb-6 bg-white py-5 px-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="inline-flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold mb-2">
+            <i class="fa-solid fa-flask text-indigo-600"></i> 중학교 3학년 과학 가상실험
+        </div>
+        <h1 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
+            일산양일중 위치에너지 실험실
+        </h1>
+        <p class="text-slate-500 text-sm mt-1">
+            위치에너지 <span class="font-bold text-indigo-600">Ep = 9.8 × m × h</span> 공식과 운동에너지로의 전환 관계를 탐구해보세요.
+        </p>
+    </header>
+
+    <!-- Main Grid Content -->
+    <main class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Virtual Lab Visualizer & Dynamic Graphs (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+            
+            <!-- Virtual Experiment Canvas Display -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-vr-cardboard text-blue-500"></i> 가상 낙하 실험 장치 (위치→운동 에너지 전환)
+                    </h2>
+                    <div class="bg-slate-100 px-3 py-1 rounded-lg text-xs font-semibold text-slate-600">
+                        상태: <span id="sim-status-badge" class="text-blue-600 font-bold text-sm">대기 중</span>
+                    </div>
+                </div>
+
+                <!-- Main Physics Canvas -->
+                <div class="canvas-container w-full h-[360px] bg-slate-900 rounded-xl overflow-hidden relative border border-slate-800">
+                    <canvas id="simCanvas" width="650" height="360" class="w-full h-full block"></canvas>
+                </div>
+
+                <!-- Calculation Formula Display Box (수정: 정답은 클릭 전 보이지 않음) -->
+                <div class="bg-indigo-900 text-white p-4 rounded-xl flex items-center justify-between text-sm md:text-base font-mono">
+                    <div>
+                        <span class="text-indigo-300 font-sans text-xs block">위치에너지 계산식</span>
+                        <span>Ep = 9.8 × <span id="formula-m" class="text-yellow-300 font-bold">1kg</span> × <span id="formula-h" class="text-green-300 font-bold">10m</span></span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-indigo-300 font-sans text-xs block">결과 위치에너지 (클릭하여 확인)</span>
+                        <button onclick="toggleAnswerVisibility()" id="formula-result-btn" class="bg-indigo-800 hover:bg-indigo-700 px-3 py-1 rounded-lg border border-indigo-500 text-amber-300 font-bold text-lg transition">
+                            ❓ [ 정답 확인 ]
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Simulation Action Buttons (수정: 운동에너지 전환 연출) -->
+                <div class="flex gap-3">
+                    <button id="btnDrop" onclick="runDropAnimation()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-bolt"></i> 물체 낙하 (운동에너지로 변환)
+                    </button>
+                    <button id="btnResetSim" onclick="resetSimulation()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-left"></i> 위치 초기화
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Graphs Section (동일 높이 다른 질량 / 동일 질량 다른 높이 옵션 추가) -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-emerald-500"></i> 위치에너지 비례관계 그래프
+                    </h2>
+                    <span class="text-[11px] text-slate-400 font-medium">*실시간 선택값 반영</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    <!-- Graph 1: Ep vs Mass (동일 높이, 다른 질량 비교) -->
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col items-center">
+                        <div class="text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            동일 높이(<span id="graph1-h">10</span>m)에서 질량 비례
+                        </div>
+                        <canvas id="graphMassCanvas" width="220" height="160" class="graph-canvas shadow-inner"></canvas>
+                        <div class="text-[10px] text-slate-500 mt-1">질량(m)이 증가하면 위치에너지(Ep)도 비례 증가</div>
+                    </div>
+
+                    <!-- Graph 2: Ep vs Height (동일 질량, 다른 높이 비교) -->
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col items-center">
+                        <div class="text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            동일 질량(<span id="graph2-m">1</span>kg)에서 높이 비례
+                        </div>
+                        <canvas id="graphHeightCanvas" width="220" height="160" class="graph-canvas shadow-inner"></canvas>
+                        <div class="text-[10px] text-slate-500 mt-1">높이(h)가 증가하면 위치에너지(Ep)도 비례 증가</div>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Column: Control Panel (Top Right) & Quiz (Bottom Right) (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+            
+            <!-- Experiment Control Panel (수정: 우측 상단 위치) -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-5">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <i class="fa-solid fa-sliders text-indigo-500"></i> 질량 및 높이 변수 설정
+                </h2>
+                
+                <!-- 1. 물체 선택 (질량 m) -->
+                <div>
+                    <label class="text-sm font-bold text-slate-700 mb-2 block">
+                        1. 낙하시킬 물체 선택 (질량 m)
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="selectObject(0)" id="obj-0" class="obj-btn active-object border-2 border-slate-200 p-2.5 rounded-xl flex items-center gap-3 transition text-xs font-semibold hover:border-blue-400">
+                            <span class="text-2xl">🍎</span>
+                            <div class="text-left">
+                                <div class="font-bold">사과</div>
+                                <div class="text-slate-400 text-[10px]">1 kg</div>
+                            </div>
+                        </button>
+                        <button onclick="selectObject(1)" id="obj-1" class="obj-btn border-2 border-slate-200 p-2.5 rounded-xl flex items-center gap-3 transition text-xs font-semibold hover:border-blue-400">
+                            <span class="text-2xl">🏀</span>
+                            <div class="text-left">
+                                <div class="font-bold">농구공</div>
+                                <div class="text-slate-400 text-[10px]">2 kg</div>
+                            </div>
+                        </button>
+                        <button onclick="selectObject(2)" id="obj-2" class="obj-btn border-2 border-slate-200 p-2.5 rounded-xl flex items-center gap-3 transition text-xs font-semibold hover:border-blue-400">
+                            <span class="text-2xl">💣</span>
+                            <div class="text-left">
+                                <div class="font-bold">쇠철퇴</div>
+                                <div class="text-slate-400 text-[10px]">5 kg</div>
+                            </div>
+                        </button>
+                        <button onclick="selectObject(3)" id="obj-3" class="obj-btn border-2 border-slate-200 p-2.5 rounded-xl flex items-center gap-3 transition text-xs font-semibold hover:border-blue-400">
+                            <span class="text-2xl">🧰</span>
+                            <div class="text-left">
+                                <div class="font-bold">금고</div>
+                                <div class="text-slate-400 text-[10px]">10 kg</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. 기준면 선택 -->
+                <div>
+                    <label class="text-sm font-bold text-slate-700 mb-2 block">
+                        2. 기준면 선택
+                    </label>
+                    <div class="flex gap-2">
+                        <button onclick="selectRefPlane(0)" id="ref-0" class="ref-btn active-ref flex-1 border-2 border-slate-200 p-2 rounded-xl text-center text-xs font-semibold transition hover:border-emerald-400">
+                            🏢 지면 (0m)
+                        </button>
+                        <button onclick="selectRefPlane(1)" id="ref-1" class="ref-btn flex-1 border-2 border-slate-200 p-2 rounded-xl text-center text-xs font-semibold transition hover:border-emerald-400">
+                            🪑 책상 (2m)
+                        </button>
+                        <button onclick="selectRefPlane(2)" id="ref-2" class="ref-btn flex-1 border-2 border-slate-200 p-2 rounded-xl text-center text-xs font-semibold transition hover:border-emerald-400">
+                            🏢 베란다 (4m)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. 높이 선택 -->
+                <div>
+                    <label class="text-sm font-bold text-slate-700 mb-2 block">
+                        3. 기준면으로부터의 높이 (h)
+                    </label>
+                    <div class="grid grid-cols-6 gap-1">
+                        <button onclick="selectHeight(0)" id="h-0" class="h-btn border-2 border-slate-200 py-2 rounded-lg text-center text-xs font-bold transition hover:bg-slate-100">0m</button>
+                        <button onclick="selectHeight(1)" id="h-1" class="h-btn border-2 border-slate-200 py-2 rounded-lg text-center text-xs font-bold transition hover:bg-slate-100">2m</button>
+                        <button onclick="selectHeight(2)" id="h-2" class="h-btn border-2 border-slate-200 py-2 rounded-lg text-center text-xs font-bold transition hover:bg-slate-100">4m</button>
+                        <button onclick="selectHeight(3)" id="h-3" class="h-btn border-2 border-slate-200 py-2 rounded-lg text-center text-xs font-bold transition hover:bg-slate-100">6m</button>
+                        <button onclick="selectHeight(4)" id="h-4" class="h-btn border-2 border-slate-200 py-2 rounded-lg text-center text-xs font-bold transition hover:bg-slate-100">8m</button>
+                        <button onclick="selectHeight(5)" id="h-5" class="h-btn border-2 border-slate-200 py-2 rounded-lg text-center text-xs font-bold transition hover:bg-slate-100">10m</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Quiz Card (수정: 우측 하단 배치, 총 10문제, 10문제 올맞춤 시 축하팝업) -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap text-indigo-500"></i> 탐구 퀴즈 (<span id="quiz-progress">1</span>/10)
+                    </h2>
+                    <div class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-trophy text-amber-600"></i> 누적 점수: <span id="user-score" class="text-sm text-amber-900 font-extrabold">0</span> / 100점
+                    </div>
+                </div>
+
+                <!-- Question Prompt -->
+                <div id="quiz-question-container">
+                    <p id="quiz-question" class="text-sm font-semibold text-slate-800 mb-3 leading-relaxed">
+                        <!-- Dynamic Question -->
+                    </p>
+                    <div id="quiz-options" class="grid grid-cols-1 gap-2">
+                        <!-- Dynamic Options -->
+                    </div>
+                </div>
+
+                <!-- Quiz Feedback Message -->
+                <div id="quiz-feedback" class="hidden p-3 rounded-xl text-xs font-bold text-center">
+                    <!-- Feedback text -->
+                </div>
+
+                <!-- Quiz Action Button -->
+                <button id="btnNextQuiz" onclick="loadNextQuestion()" class="hidden w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition text-xs">
+                    다음 문제 풀어보기 <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Celebration Modal (10문제 다 맞췄을 때 축하 팝업) -->
+    <div id="celebration-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full text-center shadow-2xl border border-indigo-100 flex flex-col items-center gap-4 transform transition-all scale-95">
+            <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-4xl shadow-inner">
+                🎉
+            </div>
+            <h3 class="text-2xl font-black text-slate-900">축하합니다! 만점 달성!</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+                10개의 위치에너지 탐구 퀴즈를 모두 맞히셨습니다!<br>위치에너지와 에너지 변환의 원리를 완벽히 이해하셨네요! 👏
+            </p>
+            <div class="bg-indigo-50 px-4 py-2 rounded-xl text-indigo-700 font-bold text-sm">
+                최종 점수: 100 / 100점
+            </div>
+            <button onclick="closeModalAndResetQuiz()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transition text-sm">
+                퀴즈 다시 처음부터 도전하기
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- 1. Data Definitions & State ---
+        const objects = [
+            { name: "사과", mass: 1, icon: "🍎", radius: 14 },
+            { name: "농구공", mass: 2, icon: "🏀", radius: 18 },
+            { name: "쇠철퇴", mass: 5, icon: "💣", radius: 22 },
+            { name: "금고", mass: 10, icon: "🧰", radius: 26 }
+        ];
+
+        const refPlanes = [
+            { name: "지면", baseHeight: 0, yOffset: 310 },
+            { name: "책상", baseHeight: 2, yOffset: 250 },
+            { name: "베란다", baseHeight: 4, yOffset: 190 }
+        ];
+
+        const heights = [0, 2, 4, 6, 8, 10];
+
+        let selectedObjIdx = 0;
+        let selectedRefIdx = 0;
+        let selectedHeightIdx = 5; // Default 10m
+        let isAnimating = false;
+        let dropProgress = 0;
+        let nailOffset = 0;
+        let isAnswerVisible = false;
+
+        // Quiz System State (총 10문제)
+        let currentScore = 0;
+        let currentQuizIdx = 0;
+        let solvedQuestions = new Set();
+
+        const quizList = [
+            {
+                q: "질량이 2kg인 공을 기준면으로부터 4m 높이에 놓았습니다. 중력에 의한 위치에너지는 몇 J인가요?",
+                options: ["39.2 J", "78.4 J", "98.0 J", "156.8 J"],
+                answer: 1
+            },
+            {
+                q: "기준면으로부터의 높이가 0m인 지점에 위치한 10kg 금고의 위치에너지는 얼마인가요?",
+                options: ["98 J", "49 J", "0 J", "10 J"],
+                answer: 2
+            },
+            {
+                q: "동일한 높이에서 물체의 질량이 2배로 증가하면 중력에 의한 위치에너지는 어떻게 되나요?",
+                options: ["1/2배로 감소", "변화 없음", "2배로 증가", "4배로 증가"],
+                answer: 2
+            },
+            {
+                q: "질량이 일정할 때, 위치에너지(Ep)와 높이(h) 간의 관계 그래프 형태는 무엇인가요?",
+                options: ["원점을 지나며 오른쪽 위로 향하는 직선", "곡선 형태의 반비례 그래프", "수평한 수평선", "아래로 향하는 감소 직선"],
+                answer: 0
+            },
+            {
+                q: "질량 5kg인 물체의 위치에너지가 196 J이 되려면 기준면으로부터 몇 m 높이에 있어야 하나요?",
+                options: ["2m", "4m", "6m", "8m"],
+                answer: 1
+            },
+            {
+                q: "물체가 낙하할 때, 위치에너지는 주로 어떤 형태의 에너지로 변환되나요?",
+                options: ["열에너지", "운동에너지", "화학에너지", "전기에너지"],
+                answer: 1
+            },
+            {
+                q: "낙하하는 물체가 지면에 도달하기 직전, 위치에너지와 운동에너지의 상태는 어떠한가요?",
+                options: ["위치에너지 최대, 운동에너지 0", "위치에너지 0, 운동에너지 최대", "둘 다 0", "둘 다 동일한 중간값"],
+                answer: 1
+            },
+            {
+                q: "질량이 1kg인 사과를 책상(높이 2m)에서 베란다(높이 4m 기준)로 옮기면, 책상 기준 위치에너지는 몇 J인가요?",
+                options: ["0 J", "19.6 J", "39.2 J", "58.8 J"],
+                answer: 1
+            },
+            {
+                q: "위치에너지 공식 Ep = 9.8 × m × h 에서 9.8의 의미는 무엇인가요?",
+                options: ["물체의 밀도", "중력 가속도 상수", "공기 저항 계수", "낙하 속도"],
+                answer: 1
+            },
+            {
+                q: "동일한 높이에서 1kg 사과와 10kg 금고를 동시에 떨어뜨릴 때, 타격하는 못에 더 큰 일을 할 수 있는 물체는?",
+                options: ["사과", "금고", "둘 다 동일함", "알 수 없음"],
+                answer: 1
+            }
+        ];
+
+        // --- 2. Canvas Rendering Logic ---
+        const canvas = document.getElementById("simCanvas");
+        const ctx = canvas.getContext("2d");
+
+        function drawSimulation() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Ground & Background
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const ref = refPlanes[selectedRefIdx];
+            const currentObj = objects[selectedObjIdx];
+            const relHeight = heights[selectedHeightIdx];
+
+            // Draw Target Structure at bottom (Ground)
+            ctx.fillStyle = "#475569";
+            ctx.fillRect(0, 310, canvas.width, 50);
+
+            // Draw Wooden block & Nail on ground
+            const targetX = 380;
+            ctx.fillStyle = "#b45309"; // Wood block
+            ctx.fillRect(targetX - 40, 270, 80, 40);
+
+            // Nail driven by impact
+            const nailY = 250 + nailOffset;
+            ctx.fillStyle = "#cbd5e1";
+            ctx.fillRect(targetX - 4, nailY, 8, 20);
+            ctx.fillRect(targetX - 10, nailY, 20, 4);
+
+            // Reference Plane Line
+            ctx.strokeStyle = "#10b981";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(0, ref.yOffset);
+            ctx.lineTo(canvas.width, ref.yOffset);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Label for Reference Plane
+            ctx.fillStyle = "#10b981";
+            ctx.font = "bold 12px 'Noto Sans KR', sans-serif";
+            ctx.fillText(`기준면: ${ref.name} (높이 0m 기준)`, 15, ref.yOffset - 8);
+
+            // Draw Furniture if reference plane is Table or Veranda
+            if (selectedRefIdx === 1) {
+                ctx.fillStyle = "#78350f";
+                ctx.fillRect(80, ref.yOffset, 160, 8);
+                ctx.fillRect(100, ref.yOffset + 8, 12, 310 - ref.yOffset);
+                ctx.fillRect(200, ref.yOffset + 8, 12, 310 - ref.yOffset);
+            } else if (selectedRefIdx === 2) {
+                ctx.fillStyle = "#334155";
+                ctx.fillRect(0, ref.yOffset, 200, 12);
+                ctx.fillRect(180, ref.yOffset, 20, 310 - ref.yOffset);
+            }
+
+            // Calculate Object Position
+            const pixelHeightPerMeter = 18;
+            const startY = ref.yOffset - (relHeight * pixelHeightPerMeter);
+            const targetY = 250 - currentObj.radius;
+            
+            let currentObjY = startY;
+            if (isAnimating) {
+                currentObjY = startY + (targetY - startY) * dropProgress;
+            }
+
+            const objX = targetX;
+
+            // Height Arrow & Ruler Line
+            if (relHeight > 0) {
+                ctx.strokeStyle = "#fbbf24";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(objX + 60, ref.yOffset);
+                ctx.lineTo(objX + 60, startY);
+                ctx.stroke();
+
+                ctx.fillStyle = "#fbbf24";
+                ctx.font = "bold 11px sans-serif";
+                ctx.fillText(`h = ${relHeight}m`, objX + 70, (ref.yOffset + startY) / 2 + 4);
+            }
+
+            // Draw Object Graphic
+            ctx.save();
+            ctx.font = `${currentObj.radius * 2}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(currentObj.icon, objX, currentObjY);
+            ctx.restore();
+
+            // Label on object
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(`${currentObj.name} (${currentObj.mass}kg)`, objX, currentObjY - currentObj.radius - 8);
+
+            // Energy Bar Indicator (운동에너지 변환 시각화)
+            if (isAnimating) {
+                const totalEp = 9.8 * currentObj.mass * relHeight;
+                const currentEk = totalEp * dropProgress;
+                const currentRemainingEp = totalEp * (1 - dropProgress);
+
+                ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+                ctx.fillRect(20, 20, 180, 70);
+                ctx.strokeStyle = "#475569";
+                ctx.strokeRect(20, 20, 180, 70);
+
+                ctx.fillStyle = "#38bdf8";
+                ctx.font = "bold 11px sans-serif";
+                ctx.textAlign = "left";
+                ctx.fillText(`위치에너지(Ep): ${currentRemainingEp.toFixed(1)} J`, 30, 40);
+
+                ctx.fillStyle = "#f43f5e";
+                ctx.fillText(`운동에너지(Ek): ${currentEk.toFixed(1)} J`, 30, 60);
+            }
+        }
+
+        // --- 3. Interactive Controls Logic ---
+        function selectObject(idx) {
+            selectedObjIdx = idx;
+            document.querySelectorAll(".obj-btn").forEach((btn, i) => {
+                if (i === idx) btn.classList.add("active-object");
+                else btn.classList.remove("active-object");
+            });
+            resetSimulation();
+            updateAll();
+        }
+
+        function selectRefPlane(idx) {
+            selectedRefIdx = idx;
+            document.querySelectorAll(".ref-btn").forEach((btn, i) => {
+                if (i === idx) btn.classList.add("active-ref");
+                else btn.classList.remove("active-ref");
+            });
+            resetSimulation();
+            updateAll();
+        }
+
+        function selectHeight(idx) {
+            selectedHeightIdx = idx;
+            document.querySelectorAll(".h-btn").forEach((btn, i) => {
+                if (i === idx) {
+                    btn.classList.add("bg-blue-600", "text-white", "border-blue-600");
+                    btn.classList.remove("border-slate-200");
+                } else {
+                    btn.classList.remove("bg-blue-600", "text-white", "border-blue-600");
+                    btn.classList.add("border-slate-200");
+                }
+            });
+            resetSimulation();
+            updateAll();
+        }
+
+        function toggleAnswerVisibility() {
+            isAnswerVisible = !isAnswerVisible;
+            updateFormulaDisplay();
+        }
+
+        function updateFormulaDisplay() {
+            const currentObj = objects[selectedObjIdx];
+            const relHeight = heights[selectedHeightIdx];
+            const ep = (9.8 * currentObj.mass * relHeight).toFixed(1);
+
+            document.getElementById("formula-m").innerText = `${currentObj.mass}kg`;
+            document.getElementById("formula-h").innerText = `${relHeight}m`;
+            
+            const resultBtn = document.getElementById("formula-result-btn");
+            if (isAnswerVisible) {
+                resultBtn.innerText = `${ep} J`;
+                resultBtn.className = "bg-amber-400 text-slate-900 font-extrabold text-xl px-3 py-1 rounded-lg border border-amber-300 shadow-md";
+            } else {
+                resultBtn.innerText = "❓ [ 정답 확인 ]";
+                resultBtn.className = "bg-indigo-800 hover:bg-indigo-700 px-3 py-1 rounded-lg border border-indigo-500 text-amber-300 font-bold text-lg transition";
+            }
+        }
+
+        function updateAll() {
+            const currentObj = objects[selectedObjIdx];
+            const relHeight = heights[selectedHeightIdx];
+
+            document.getElementById("graph1-h").innerText = relHeight;
+            document.getElementById("graph2-m").innerText = currentObj.mass;
+
+            isAnswerVisible = false; // 변수 변경 시 정답 다시 숨김
+            updateFormulaDisplay();
+            drawSimulation();
+            drawGraphs();
+        }
+
+        function runDropAnimation() {
+            if (isAnimating) return;
+            const relHeight = heights[selectedHeightIdx];
+            if (relHeight === 0) {
+                alert("높이가 0m일 때는 위치에너지가 0 J이므로 운동에너지로의 전환이 일어나지 않습니다!");
+                return;
+            }
+
+            isAnimating = true;
+            dropProgress = 0;
+            document.getElementById("sim-status-badge").innerText = "운동에너지 전환 중...";
+            document.getElementById("sim-status-badge").className = "text-rose-500 font-bold text-sm animate-pulse";
+
+            const currentObj = objects[selectedObjIdx];
+            const ep = 9.8 * currentObj.mass * relHeight;
+
+            const duration = 700;
+            const startTime = performance.now();
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                dropProgress = Math.min(elapsed / duration, 1);
+                dropProgress = Math.pow(dropProgress, 2); // 가속도 표현
+
+                if (dropProgress >= 1) {
+                    dropProgress = 1;
+                    nailOffset = Math.min(ep * 0.15, 30);
+                    drawSimulation();
+                    isAnimating = false;
+                    document.getElementById("sim-status-badge").innerText = "낙하 완료 (일 변환됨)";
+                    document.getElementById("sim-status-badge").className = "text-emerald-600 font-bold text-sm";
+                } else {
+                    drawSimulation();
+                    requestAnimationFrame(animate);
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function resetSimulation() {
+            isAnimating = false;
+            dropProgress = 0;
+            nailOffset = 0;
+            document.getElementById("sim-status-badge").innerText = "대기 중";
+            document.getElementById("sim-status-badge").className = "text-blue-600 font-bold text-sm";
+            drawSimulation();
+        }
+
+        // --- 4. Dynamic Graphs Logic (비례 관계 시각화 연동) ---
+        function drawGraphs() {
+            drawGraphMass();
+            drawGraphHeight();
+        }
+
+        function drawGraphMass() {
+            const canvasM = document.getElementById("graphMassCanvas");
+            const gCtx = canvasM.getContext("2d");
+            gCtx.clearRect(0, 0, canvasM.width, canvasM.height);
+
+            const padding = 30;
+            const w = canvasM.width - padding * 2;
+            const h = canvasM.height - padding * 2;
+
+            gCtx.strokeStyle = "#cbd5e1";
+            gCtx.lineWidth = 1;
+            gCtx.beginPath();
+            gCtx.moveTo(padding, padding);
+            gCtx.lineTo(padding, padding + h);
+            gCtx.lineTo(padding + w, padding + h);
+            gCtx.stroke();
+
+            gCtx.fillStyle = "#64748b";
+            gCtx.font = "10px sans-serif";
+            gCtx.fillText("Ep(J)", padding - 20, padding - 8);
+            gCtx.fillText("질량 m(kg)", padding + w - 30, padding + h + 18);
+
+            const relHeight = heights[selectedHeightIdx];
+            const maxMass = 10;
+            const maxEp = 9.8 * maxMass * 10;
+
+            gCtx.strokeStyle = "#3b82f6";
+            gCtx.lineWidth = 2;
+            gCtx.beginPath();
+            gCtx.moveTo(padding, padding + h);
+
+            const lineEndMass = 10;
+            const lineEndEp = 9.8 * lineEndMass * relHeight;
+            const endX = padding + (lineEndMass / maxMass) * w;
+            const endY = padding + h - (lineEndEp / maxEp) * h;
+            gCtx.lineTo(endX, endY);
+            gCtx.stroke();
+
+            // Highlight current selection
+            const currentObj = objects[selectedObjIdx];
+            const currentEp = 9.8 * currentObj.mass * relHeight;
+            const dotX = padding + (currentObj.mass / maxMass) * w;
+            const dotY = padding + h - (currentEp / maxEp) * h;
+
+            gCtx.fillStyle = "#ef4444";
+            gCtx.beginPath();
+            gCtx.arc(dotX, dotY, 5, 0, Math.PI * 2);
+            gCtx.fill();
+        }
+
+        function drawGraphHeight() {
+            const canvasH = document.getElementById("graphHeightCanvas");
+            const gCtx = canvasH.getContext("2d");
+            gCtx.clearRect(0, 0, canvasH.width, canvasH.height);
+
+            const padding = 30;
+            const w = canvasH.width - padding * 2;
+            const h = canvasH.height - padding * 2;
+
+            gCtx.strokeStyle = "#cbd5e1";
+            gCtx.lineWidth = 1;
+            gCtx.beginPath();
+            gCtx.moveTo(padding, padding);
+            gCtx.lineTo(padding, padding + h);
+            gCtx.lineTo(padding + w, padding + h);
+            gCtx.stroke();
+
+            gCtx.fillStyle = "#64748b";
+            gCtx.font = "10px sans-serif";
+            gCtx.fillText("Ep(J)", padding - 20, padding - 8);
+            gCtx.fillText("높이 h(m)", padding + w - 25, padding + h + 18);
+
+            const currentObj = objects[selectedObjIdx];
+            const maxHeight = 10;
+            const maxEp = 9.8 * 10 * maxHeight;
+
+            gCtx.strokeStyle = "#10b981";
+            gCtx.lineWidth = 2;
+            gCtx.beginPath();
+            gCtx.moveTo(padding, padding + h);
+
+            const lineEndH = 10;
+            const lineEndEp = 9.8 * currentObj.mass * lineEndH;
+            const endX = padding + (lineEndH / maxHeight) * w;
+            const endY = padding + h - (lineEndEp / maxEp) * h;
+            gCtx.lineTo(endX, endY);
+            gCtx.stroke();
+
+            // Highlight current selection
+            const relHeight = heights[selectedHeightIdx];
+            const currentEp = 9.8 * currentObj.mass * relHeight;
+            const dotX = padding + (relHeight / maxHeight) * w;
+            const dotY = padding + h - (currentEp / maxEp) * h;
+
+            gCtx.fillStyle = "#ef4444";
+            gCtx.beginPath();
+            gCtx.arc(dotX, dotY, 5, 0, Math.PI * 2);
+            gCtx.fill();
+        }
+
+        // --- 5. Quiz System Logic ---
+        function renderQuiz() {
+            const quiz = quizList[currentQuizIdx];
+            document.getElementById("quiz-progress").innerText = `${currentQuizIdx + 1}`;
+            document.getElementById("quiz-question").innerText = `Q${currentQuizIdx + 1}. ${quiz.q}`;
+
+            const optionsContainer = document.getElementById("quiz-options");
+            optionsContainer.innerHTML = "";
+
+            quiz.options.forEach((optText, i) => {
+                const btn = document.createElement("button");
+                btn.className = "btn-option w-full text-left p-2.5 rounded-xl border-2 border-slate-200 text-xs font-semibold hover:border-indigo-400 hover:bg-indigo-50/50 flex items-center gap-2 transition";
+                btn.innerHTML = `<span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-bold">${i + 1}</span> ${optText}`;
+                btn.onclick = () => checkQuizAnswer(i);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById("quiz-feedback").className = "hidden p-3 rounded-xl text-xs font-bold text-center";
+            document.getElementById("btnNextQuiz").classList.add("hidden");
+        }
+
+        function checkQuizAnswer(selectedIdx) {
+            const quiz = quizList[currentQuizIdx];
+            const feedbackEl = document.getElementById("quiz-feedback");
+            const btnNext = document.getElementById("btnNextQuiz");
+            const optionBtns = document.querySelectorAll("#quiz-options button");
+
+            if (selectedIdx === quiz.answer) {
+                // 정답 처리
+                if (!solvedQuestions.has(currentQuizIdx)) {
+                    solvedQuestions.add(currentQuizIdx);
+                    currentScore += 10;
+                    document.getElementById("user-score").innerText = currentScore;
+                }
+
+                feedbackEl.className = "p-3 rounded-xl text-xs font-bold text-center bg-emerald-100 text-emerald-800 border border-emerald-300 block";
+                feedbackEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> 정답입니다! (+10점 획득)`;
+
+                optionBtns.forEach((btn, i) => {
+                    btn.disabled = true;
+                    if (i === quiz.answer) {
+                        btn.classList.add("border-emerald-500", "bg-emerald-50");
+                    }
+                });
+
+                // 10문제 모두 맞혔는지 확인
+                if (currentScore === 100 && solvedQuestions.size === 10) {
+                    setTimeout(showCelebrationModal, 500);
+                } else {
+                    btnNext.classList.remove("hidden");
+                }
+            } else {
+                // 오답 처리
+                feedbackEl.className = "p-3 rounded-xl text-xs font-bold text-center bg-rose-100 text-rose-800 border border-rose-300 block";
+                feedbackEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> 오답입니다! 다시 풀어보세요.`;
+
+                optionBtns.forEach(btn => {
+                    btn.disabled = false;
+                });
+            }
+        }
+
+        function loadNextQuestion() {
+            currentQuizIdx = (currentQuizIdx + 1) % quizList.length;
+            renderQuiz();
+        }
+
+        function showCelebrationModal() {
+            const modal = document.getElementById("celebration-modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        }
+
+        function closeModalAndResetQuiz() {
+            const modal = document.getElementById("celebration-modal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+
+            // Reset quiz states
+            currentScore = 0;
+            currentQuizIdx = 0;
+            solvedQuestions.clear();
+            document.getElementById("user-score").innerText = "0";
+            renderQuiz();
+        }
+
+        // --- 6. Initialization ---
+        window.onload = function() {
+            selectHeight(5); // Default 10m
+            renderQuiz();
+        };
+
+        window.onresize = function() {
+            drawSimulation();
+            drawGraphs();
+        };
+    </script>
+</body>
+</html>
